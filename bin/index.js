@@ -41,6 +41,23 @@ try {
   process.exit(1);
 }
 
+// --- 2b) Zkopírování placeholder souborů ---
+const placeholdersDir = path.join(__dirname, '..', 'app'); // tady máš page.tsx a route.ts
+const targetAppDir = path.join(targetPath, 'app');
+if (!fs.existsSync(targetAppDir)) fs.mkdirSync(targetAppDir, { recursive: true });
+
+// kopírování page.tsx
+const sourcePage = path.join(placeholdersDir, 'page.tsx');
+fsExtra.copySync(sourcePage, path.join(targetAppDir, 'page.tsx'));
+
+// kopírování demo API
+const sourceApi = path.join(placeholdersDir, 'route.ts');
+const targetApiDir = path.join(targetAppDir, 'api', 'todos');
+fs.mkdirSync(targetApiDir, { recursive: true });
+fsExtra.copySync(sourceApi, path.join(targetApiDir, 'route.ts'));
+
+console.log('✅ Placeholder soubory nakopírovány.');
+
 // --- 3) Instalace dependencies projektu ---
 console.log('📦 Instalace závislostí projektu...');
 try {
