@@ -9,7 +9,7 @@
     "prompts": "^3.0.0",
     "inquirer": "^9.2.7",
     "fs-extra": "^11.1.1",
-    "degit": "^2.8.6"
+    "degit": "^2.8.4"
   },
   "engines": {
     "node": ">=20"
