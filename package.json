@@ -1,7 +1,7 @@
 {
   "name": "create-cstm-project",
   "version": "0.1.0",
-  "description": "Interactive bootstrapper for CSTM projects",
+  "type": "module",
   "bin": {
     "create-cstm-project": "./bin/index.js"
   },
