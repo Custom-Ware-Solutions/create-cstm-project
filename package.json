@@ -1,15 +1,23 @@
 {
   "name": "create-cstm-project",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "CLI pro rychlé vytváření CSTM projektů s Next.js, Prisma, Supabase a placeholdery",
   "type": "module",
   "bin": {
     "create-cstm-project": "./bin/index.js"
   },
-  "type": "module",
+  "scripts": {
+    "start": "node ./bin/index.js"
+  },
   "dependencies": {
-    "chalk": "^5.3.0",
-    "prompts": "^2.4.2",
-    "execa": "^8.0.1",
-    "degit": "^2.8.4"
-  }
+    "inquirer": "^9.2.7",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "pnpm": "^10.15.1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true
 }
