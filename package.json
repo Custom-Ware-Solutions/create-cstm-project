@@ -5,9 +5,6 @@
   "bin": {
     "create-cstm-project": "./bin/index.js"
   },
-  "scripts": {
-    "postinstall": "node ./bin/install-deps.js"
-  },
   "dependencies": {
     "prompts": "^3.0.0",
     "inquirer": "^9.2.7",
