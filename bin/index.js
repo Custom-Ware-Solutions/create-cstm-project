@@ -1,35 +1,43 @@
 #!/usr/bin/env node
+import prompts from 'prompts';
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import process from 'process';
+import degit from 'degit';
 import fsExtra from 'fs-extra';
 
 const cwd = process.cwd();
 
-// --- interaktivní dotazy ---
-const answers = await inquirer.prompt([
-  { type: 'input', name: 'projectName', message: 'Název projektu:' },
-  { type: 'confirm', name: 'setupDb', message: 'Chceš inicializovat Supabase + Prisma DB?', default: true },
+// --- 1) Název projektu ---
+const { projectName } = await inquirer.prompt([
+  { type: 'input', name: 'projectName', message: 'Název projektu:', default: 'my-app' }
 ]);
-
-const projectName = answers.projectName;
+if (!projectName) {
+  console.error('❌ Název projektu není validní.');
+  process.exit(1);
+}
 const targetPath = path.join(cwd, projectName);
+console.log(`√ Projekt: ${projectName}`);
 
-// --- vytvoření adresáře projektu ---
+// --- 2) Klonování template ---
+console.log('📦 Klonuji template...');
+const emitter = degit('Custom-Ware-Solutions/cstm-project-template/template', {
+  cache: false,
+  force: true,
+  verbose: true
+});
 if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath);
-
-// --- kopírování template ---
-const templatePath = path.join(__dirname, '..', 'template');
 try {
-  fsExtra.copySync(templatePath, targetPath, { overwrite: true });
-  console.log('✅ Template soubory nakopírovány.');
+  await emitter.clone(targetPath);
+  console.log('✅ Template naklonován.');
 } catch (err) {
-  console.error('❌ Chyba při kopírování template:', err.message);
+  console.error('❌ Chyba při klonování template:', err.message);
   process.exit(1);
 }
 
-// --- instalace závislostí ---
+// --- 3) Instalace závislostí ---
 console.log('📦 Instalace závislostí...');
 try {
   execSync('pnpm install', { cwd: targetPath, stdio: 'inherit' });
@@ -39,27 +47,34 @@ try {
   process.exit(1);
 }
 
-// --- inicializace Git ---
-const gitInit = await inquirer.prompt([{ type: 'confirm', name: 'gitInit', message: 'Inicializovat Git?', default: true }]);
-if (gitInit.gitInit) {
-  execSync('git init', { cwd: targetPath, stdio: 'inherit' });
-  console.log('✅ Git repo inicializováno.');
+// --- 4) Inicializace Git ---
+const { gitInit } = await inquirer.prompt([
+  { type: 'confirm', name: 'gitInit', message: 'Inicializovat Git repo?', default: true }
+]);
+if (gitInit) {
+  try {
+    execSync('git init', { cwd: targetPath, stdio: 'inherit' });
+    console.log('✅ Git repo inicializováno.');
+  } catch (err) {
+    console.warn('⚠️ Git repo nebylo inicializováno:', err.message);
+  }
 }
 
-// --- volitelná inicializace DB ---
-if (answers.setupDb) {
+// --- 5) Volitelná inicializace DB (Supabase + Prisma) ---
+const { setupDb } = await inquirer.prompt([
+  { type: 'confirm', name: 'setupDb', message: 'Chceš inicializovat lokální Supabase + Prisma (migrace + seed)?', default: true }
+]);
+if (setupDb) {
   const scriptPath = path.join(targetPath, 'scripts', 'start-local-db.js');
   if (fs.existsSync(scriptPath)) {
     console.log('🚀 Spouštím lokální DB + migrace + seed...');
     try {
-      execSync(`node ${scriptPath}`, { stdio: 'inherit' });
-      console.log('✅ Lokální Supabase + Prisma připraveny!');
+      execSync(`node ${scriptPath}`, { cwd: targetPath, stdio: 'inherit' });
+      console.log('✅ Lokální DB inicializována.');
     } catch (err) {
-      console.error('❌ Chyba při inicializaci DB:', err.message);
+      console.error('❌ Chyba při spouštění lokální DB:', err.message);
     }
-  } else {
-    console.warn('⚠️ Skript start-local-db.js nenalezen, přeskočeno.');
   }
 }
 
-console.log(`🎉 Hotovo! Přesuň se do projektu: cd ${projectName} a spusť pnpm run dev`);
+console.log(`✨ Hotovo! Přesuň se do projektu: cd ${projectName} a spusť: pnpm run dev`);
