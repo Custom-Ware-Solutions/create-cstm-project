@@ -1,86 +1,95 @@
 #!/usr/bin/env node
-import prompts from "prompts";
-import chalk from "chalk";
-import { execa } from "execa";
-import degit from "degit";
-import fs from "fs";
-import path from "path";
+import prompts from 'prompts';
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import process from 'process';
+import degit from 'degit';
 
-console.log(chalk.cyan("🚀 CSTM Project Bootstrap"));
+const cwd = process.cwd();
 
-// Ověření Node
-try {
-  const { stdout } = await execa("node", ["-v"]);
-  console.log(chalk.green(`✅ Node.js nalezen: ${stdout}`));
-} catch {
-  console.error(chalk.red("❌ Node.js není nainstalován nebo není v PATH. Instalujte Node 20+ z https://nodejs.org/"));
+// --- 1) Interaktivní dotaz na název projektu ---
+const response = await prompts({
+  type: 'text',
+  name: 'projectName',
+  message: 'Zadej název projektu:',
+  initial: 'my-app'
+});
+
+const projectName = response.projectName;
+if (!projectName) {
+  console.error('❌ Název projektu není validní.');
   process.exit(1);
 }
 
-// Ověření Git
+console.log(`√ Projekt: ${projectName}`);
+
+// --- 2) Klonování template ---
+console.log('📦 Klonuji template...');
+const emitter = degit('Custom-Ware-Solutions/cstm-project-template', {
+  cache: false,
+  force: true,
+  verbose: true
+});
+
 try {
-  await execa("git", ["--version"]);
-  console.log(chalk.green("✅ Git nalezen"));
-} catch {
-  console.error(chalk.red("❌ Git není nainstalován nebo není v PATH"));
-  process.exit(1);
-}
-
-// Prefer pnpm, fallback npm
-let packageManager = "npm";
-try {
-  await execa("pnpm", ["--version"]);
-  packageManager = "pnpm";
-} catch {}
-
-console.log(chalk.cyan(`📦 Používáme balíčkovač: ${packageManager}`));
-
-// Interaktivní dotazy
-const response = await prompts([
-  { type: "text", name: "project", message: "👉 Název projektu:", initial: "my-app" },
-  { type: "toggle", name: "git", message: "Inicializovat Git?", initial: true, active: "yes", inactive: "no" }
-]);
-
-const projectPath = path.resolve(response.project);
-if (!fs.existsSync(projectPath)) fs.mkdirSync(projectPath, { recursive: true });
-
-console.log(chalk.yellow("📦 Klonuji template..."));
-try {
-  await degit("Custom-Ware-Solutions/cstm-project-template#main", {
-    cache: false,
-    force: true,
-    verbose: true
-  }).clone(projectPath);
-  console.log(chalk.green("✅ Template úspěšně naklonován"));
+  await emitter.clone(path.join(cwd, projectName));
+  console.log('✅ Template naklonován.');
 } catch (err) {
-  console.error(chalk.red("❌ Chyba při stahování template repa!"));
-  console.error(chalk.red("Zkontrolujte, zda repozitář existuje a máte přístup (GH_TOKEN pro private rep)."));
-  console.error(chalk.red(err.message));
+  console.error('❌ Chyba při klonování template:', err.message);
   process.exit(1);
 }
 
-// Instalace závislostí
-process.chdir(projectPath);
-console.log(chalk.yellow(`📦 Instalace závislostí přes ${packageManager}...`));
+// --- 3) Instalace závislostí ---
+console.log('📦 Instalace závislostí přes pnpm...');
 try {
-  await execa(packageManager, ["install"], { stdio: "inherit" });
-  console.log(chalk.green("✅ Závislosti nainstalovány"));
+  execSync('pnpm install', { cwd: path.join(cwd, projectName), stdio: 'inherit' });
+  console.log('✅ Závislosti nainstalovány.');
 } catch (err) {
-  console.error(chalk.red("❌ Instalace závislostí selhala!"));
-  console.error(chalk.red(`Zkuste ručně: '${packageManager} install'`));
+  console.error('❌ Instalace závislostí selhala! Zkus ručně: pnpm install');
   process.exit(1);
 }
 
-// Git init
-if (response.git) {
+// --- 4) Inicializace Git ---
+const gitResponse = await prompts({
+  type: 'confirm',
+  name: 'gitInit',
+  message: 'Inicializovat Git repo?',
+  initial: true
+});
+
+if (gitResponse.gitInit) {
   try {
-    await execa("git", ["init"], { stdio: "inherit" });
-    console.log(chalk.green("✅ Git repo inicializováno"));
+    execSync('git init', { cwd: path.join(cwd, projectName), stdio: 'inherit' });
+    console.log('✅ Git repo inicializováno.');
   } catch (err) {
-    console.error(chalk.red("❌ Git init selhalo!"));
+    console.warn('⚠️ Git repo nebylo inicializováno:', err.message);
   }
 }
 
-console.log(chalk.cyan("\n✨ Hotovo! Teď spusť:"));
-console.log(chalk.white(`cd ${response.project}`));
-console.log(chalk.white(`${packageManager} run dev`));
+// --- 5) Interaktivní dotaz na Supabase + Prisma ---
+const dbResponse = await prompts({
+  type: 'confirm',
+  name: 'setupDb',
+  message: 'Chceš inicializovat lokální Supabase + Prisma (migrace + seed)?',
+  initial: true
+});
+
+if (dbResponse.setupDb) {
+  const scriptPath = path.join(cwd, projectName, 'scripts', 'start-local-db.sh');
+  if (fs.existsSync(scriptPath)) {
+    console.log('🚀 Spouštím lokální DB + migrace + seed...');
+    try {
+      execSync(`bash ${scriptPath}`, { stdio: 'inherit' });
+      console.log('✅ Lokální Supabase + Prisma připraveny!');
+    } catch (err) {
+      console.error('❌ Chyba při inicializaci DB:', err.message);
+    }
+  } else {
+    console.warn('⚠️ Skript start-local-db.sh nenalezen, přeskočeno.');
+  }
+} else {
+  console.log('Lokální Supabase + Prisma nebyly inicializovány.');
+}
+
+console.log(`✨ Hotovo! Přesuň se do projektu: cd ${projectName} a spusť: pnpm run dev`);
