@@ -4,36 +4,45 @@ import chalk from "chalk";
 import { execa } from "execa";
 import degit from "degit";
 import fs from "fs";
+import path from "path";
 
-function checkCommand(cmd) {
-  try {
-    execa.sync(cmd, ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
+console.log(chalk.cyan("🚀 CSTM Project Bootstrap"));
 
-if (!checkCommand("node")) {
-  console.error(chalk.red("❌ Node.js není nainstalován nebo není v PATH"));
+// Ověření Node
+try {
+  const { stdout } = await execa("node", ["-v"]);
+  console.log(chalk.green(`✅ Node.js nalezen: ${stdout}`));
+} catch {
+  console.error(chalk.red("❌ Node.js není nainstalován nebo není v PATH. Instalujte Node 20+ z https://nodejs.org/"));
   process.exit(1);
 }
-if (!checkCommand("git")) {
+
+// Ověření Git
+try {
+  await execa("git", ["--version"]);
+  console.log(chalk.green("✅ Git nalezen"));
+} catch {
   console.error(chalk.red("❌ Git není nainstalován nebo není v PATH"));
   process.exit(1);
 }
 
-// prefer pnpm, fallback npm
-const packageManager = checkCommand("pnpm") ? "pnpm" : "npm";
+// Prefer pnpm, fallback npm
+let packageManager = "npm";
+try {
+  await execa("pnpm", ["--version"]);
+  packageManager = "pnpm";
+} catch {}
 
-console.log(chalk.cyan(`🚀 CSTM Project Bootstrap (${packageManager})`));
+console.log(chalk.cyan(`📦 Používáme balíčkovač: ${packageManager}`));
 
+// Interaktivní dotazy
 const response = await prompts([
   { type: "text", name: "project", message: "👉 Název projektu:", initial: "my-app" },
   { type: "toggle", name: "git", message: "Inicializovat Git?", initial: true, active: "yes", inactive: "no" }
 ]);
 
-if (!fs.existsSync(response.project)) fs.mkdirSync(response.project);
+const projectPath = path.resolve(response.project);
+if (!fs.existsSync(projectPath)) fs.mkdirSync(projectPath, { recursive: true });
 
 console.log(chalk.yellow("📦 Klonuji template..."));
 try {
@@ -41,27 +50,28 @@ try {
     cache: false,
     force: true,
     verbose: true
-  }).clone(response.project);
+  }).clone(projectPath);
+  console.log(chalk.green("✅ Template úspěšně naklonován"));
 } catch (err) {
   console.error(chalk.red("❌ Chyba při stahování template repa!"));
-  console.error(chalk.red("Zkontrolujte, zda repozitář existuje a máte přístup."));
+  console.error(chalk.red("Zkontrolujte, zda repozitář existuje a máte přístup (GH_TOKEN pro private rep)."));
   console.error(chalk.red(err.message));
   process.exit(1);
 }
 
-process.chdir(response.project);
-
+// Instalace závislostí
+process.chdir(projectPath);
 console.log(chalk.yellow(`📦 Instalace závislostí přes ${packageManager}...`));
 try {
   await execa(packageManager, ["install"], { stdio: "inherit" });
+  console.log(chalk.green("✅ Závislosti nainstalovány"));
 } catch (err) {
   console.error(chalk.red("❌ Instalace závislostí selhala!"));
-  console.error(chalk.red(`Zkuste spustit ručně: '${packageManager} install'`));
-  console.error(chalk.red("Na Windows doporučujeme PowerShell s administrátorskými právy."));
-  console.error(chalk.red(err.shortMessage || err.message));
+  console.error(chalk.red(`Zkuste ručně: '${packageManager} install'`));
   process.exit(1);
 }
 
+// Git init
 if (response.git) {
   try {
     await execa("git", ["init"], { stdio: "inherit" });
@@ -71,6 +81,6 @@ if (response.git) {
   }
 }
 
-console.log(chalk.cyan("\n✨ Hotovo! Teď:"));
+console.log(chalk.cyan("\n✨ Hotovo! Teď spusť:"));
 console.log(chalk.white(`cd ${response.project}`));
 console.log(chalk.white(`${packageManager} run dev`));
