@@ -4,16 +4,16 @@ import process from 'process';
 
 console.log('🚀 Spouštím lokální Supabase + Prisma...');
 
-// --- Kontrola Supabase CLI ---
+// Kontrola Supabase CLI
 try {
   execSync('supabase --version', { stdio: 'ignore' });
-} catch (err) {
+} catch {
   console.error('❌ Supabase CLI není nainstalované.');
   console.error('Nainstaluj: npm install -g supabase');
   process.exit(1);
 }
 
-// --- Spuštění Supabase lokálně ---
+// Spuštění Supabase lokálně
 try {
   console.log('📦 Spouštím lokální Supabase...');
   execSync('pnpm dlx supabase start', { stdio: 'inherit' });
