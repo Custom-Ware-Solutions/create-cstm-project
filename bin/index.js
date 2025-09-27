@@ -1,19 +1,23 @@
 #!/usr/bin/env node
 import prompts from 'prompts';
 import inquirer from 'inquirer';
-import { execSync } from 'child_process';
+import fsExtra from 'fs-extra';
 import fs from 'fs';
 import path from 'path';
-import process from 'process';
+import { execSync } from 'child_process';
 import degit from 'degit';
-import fsExtra from 'fs-extra';
+import process from 'process';
 
 const cwd = process.cwd();
 
 // --- 1) Název projektu ---
-const { projectName } = await inquirer.prompt([
-  { type: 'input', name: 'projectName', message: 'Název projektu:', default: 'my-app' }
-]);
+const response = await prompts({
+  type: 'text',
+  name: 'projectName',
+  message: 'Zadej název projektu:',
+  initial: 'my-app'
+});
+const projectName = response.projectName;
 if (!projectName) {
   console.error('❌ Název projektu není validní.');
   process.exit(1);
@@ -21,14 +25,14 @@ if (!projectName) {
 const targetPath = path.join(cwd, projectName);
 console.log(`√ Projekt: ${projectName}`);
 
-// --- 2) Klonování template ---
+// --- 2) Klon template ---
 console.log('📦 Klonuji template...');
-const emitter = degit('Custom-Ware-Solutions/cstm-project-template/template', {
+const emitter = degit('Custom-Ware-Solutions/cstm-project-template', {
   cache: false,
   force: true,
   verbose: true
 });
-if (!fs.existsSync(targetPath)) fs.mkdirSync(targetPath);
+
 try {
   await emitter.clone(targetPath);
   console.log('✅ Template naklonován.');
@@ -37,21 +41,21 @@ try {
   process.exit(1);
 }
 
-// --- 3) Instalace závislostí ---
-console.log('📦 Instalace závislostí...');
+// --- 3) Instalace dependencies projektu ---
+console.log('📦 Instalace závislostí projektu...');
 try {
   execSync('pnpm install', { cwd: targetPath, stdio: 'inherit' });
   console.log('✅ Závislosti nainstalovány.');
 } catch (err) {
-  console.error('❌ Instalace selhala! Zkus ručně: pnpm install');
+  console.error('❌ Instalace selhala! Zkus: cd', projectName, '&& pnpm install');
   process.exit(1);
 }
 
 // --- 4) Inicializace Git ---
-const { gitInit } = await inquirer.prompt([
-  { type: 'confirm', name: 'gitInit', message: 'Inicializovat Git repo?', default: true }
+const gitInit = await inquirer.prompt([
+  { type: 'confirm', name: 'gitInit', message: 'Inicializovat Git?', default: true }
 ]);
-if (gitInit) {
+if (gitInit.gitInit) {
   try {
     execSync('git init', { cwd: targetPath, stdio: 'inherit' });
     console.log('✅ Git repo inicializováno.');
@@ -60,20 +64,22 @@ if (gitInit) {
   }
 }
 
-// --- 5) Volitelná inicializace DB (Supabase + Prisma) ---
-const { setupDb } = await inquirer.prompt([
-  { type: 'confirm', name: 'setupDb', message: 'Chceš inicializovat lokální Supabase + Prisma (migrace + seed)?', default: true }
+// --- 5) Inicializace Supabase + Prisma ---
+const dbSetup = await inquirer.prompt([
+  { type: 'confirm', name: 'setupDb', message: 'Chceš inicializovat lokální Supabase + Prisma?', default: true }
 ]);
-if (setupDb) {
+if (dbSetup.setupDb) {
   const scriptPath = path.join(targetPath, 'scripts', 'start-local-db.js');
   if (fs.existsSync(scriptPath)) {
     console.log('🚀 Spouštím lokální DB + migrace + seed...');
     try {
       execSync(`node ${scriptPath}`, { cwd: targetPath, stdio: 'inherit' });
-      console.log('✅ Lokální DB inicializována.');
+      console.log('✅ Lokální DB připravena.');
     } catch (err) {
-      console.error('❌ Chyba při spouštění lokální DB:', err.message);
+      console.error('❌ Chyba při inicializaci DB:', err.message);
     }
+  } else {
+    console.warn('⚠️ start-local-db.js nenalezen. Přeskočeno.');
   }
 }
 
