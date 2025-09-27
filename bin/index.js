@@ -76,20 +76,19 @@ const dbResponse = await prompts({
 });
 
 if (dbResponse.setupDb) {
-  const scriptPath = path.join(cwd, projectName, 'scripts', 'start-local-db.sh');
+  const scriptPath = path.join(cwd, projectName, 'scripts', 'start-local-db.js');
   if (fs.existsSync(scriptPath)) {
     console.log('🚀 Spouštím lokální DB + migrace + seed...');
     try {
-      execSync(`bash ${scriptPath}`, { stdio: 'inherit' });
+      execSync(`node ${scriptPath}`, { stdio: 'inherit' });
       console.log('✅ Lokální Supabase + Prisma připraveny!');
     } catch (err) {
       console.error('❌ Chyba při inicializaci DB:', err.message);
     }
   } else {
-    console.warn('⚠️ Skript start-local-db.sh nenalezen, přeskočeno.');
+    console.warn('⚠️ Skript start-local-db.js nenalezen, přeskočeno.');
   }
-} else {
-  console.log('Lokální Supabase + Prisma nebyly inicializovány.');
 }
+
 
 console.log(`✨ Hotovo! Přesuň se do projektu: cd ${projectName} a spusť: pnpm run dev`);
