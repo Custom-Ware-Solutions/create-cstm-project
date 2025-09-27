@@ -7,8 +7,11 @@ import path from 'path';
 import { execSync } from 'child_process';
 import degit from 'degit';
 import process from 'process';
+import { fileURLToPath } from 'url';
 
 const cwd = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- 1) Název projektu ---
 const response = await prompts({
@@ -83,18 +86,16 @@ if (dbSetup.setupDb) {
   }
 }
 
-// --- 6) Kopírování placeholder page.tsx ---
-const targetAppDir = path.join(targetPath, 'app');
-if (!fs.existsSync(targetAppDir)) fs.mkdirSync(targetAppDir, { recursive: true });
+// --- 6) Přidání placeholderu page.tsx ---
+const placeholdersDir = path.join(__dirname, '../app');
+const destAppDir = path.join(targetPath, 'app');
+fsExtra.ensureDirSync(destAppDir);
 
-const placeholdersDir = path.join(path.resolve(new URL('.', import.meta.url).pathname), '../app'); // cíl: CLI balíček/app
-const placeholderPage = path.join(placeholdersDir, 'page.tsx');
-
-if (fs.existsSync(placeholderPage)) {
-  fsExtra.copySync(placeholderPage, path.join(targetAppDir, 'page.tsx'));
-  console.log('✅ Placeholder page.tsx nakopírován');
-} else {
-  console.warn('⚠️ Placeholder page.tsx nenalezen, přeskočeno.');
+try {
+  fsExtra.copySync(path.join(placeholdersDir, 'page.tsx'), path.join(destAppDir, 'page.tsx'), { overwrite: true });
+  console.log('✅ Placeholder page.tsx vytvořen v projektu.');
+} catch (err) {
+  console.warn('⚠️ Nepodařilo se zkopírovat placeholder page.tsx:', err.message);
 }
 
 console.log(`✨ Hotovo! Přesuň se do projektu: cd ${projectName} a spusť: pnpm run dev`);
